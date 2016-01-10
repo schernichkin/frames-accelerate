@@ -21,6 +21,7 @@ library
   build-depends:       base >= 4.7 && < 5
                      , accelerate
                      , Frames
+                     -- TODO: lens is only for testing here, it should be removed in final version
                      , lens
                      , vinyl
   default-language:    Haskell2010

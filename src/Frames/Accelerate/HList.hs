@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -9,12 +10,18 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- | Allows to use Vinyl's HList in Accelerate expressions.
-module Frames.Accelerate.HList () where
+-- | HList support in Accelerate expressions.
+module Frames.Accelerate.HList
+  ( RowsExp
+  , hlens
+  , hget
+  , hput
+  ) where
 
+import Control.Applicative
 import Data.Array.Accelerate
 import Data.Array.Accelerate.Array.Sugar
-import Data.Array.Accelerate.Smart
+import Data.Array.Accelerate.Smart hiding ( Const )
 import Data.Array.Accelerate.Tuple
 import Data.Array.Accelerate.Type
 import Data.Typeable
@@ -99,3 +106,39 @@ instance ( Elt  r
   unlift e = let h = Exp $ ZeroTupIdx `Prj` e
                  t = Exp $ SuccTupIdx ZeroTupIdx `Prj` e
              in Identity h :& unlift t
+
+type family RowsExp rs :: [*] where
+  RowsExp '[] = '[]
+  RowsExp (r ': rs) = Exp r ': RowsExp rs
+
+-- | Specialized version of @unlift@ which can be used to convert
+-- expression of HList to HList of expressions without extra type annotations.
+unliftHList :: ( Unlift Exp (HList (RowsExp rs))
+               , HList rs ~ Plain (HList (RowsExp rs))
+               )
+            => Exp (HList rs) -> HList (RowsExp rs)
+unliftHList = unlift
+
+hlens :: ( Functor f
+         , HList rs ~ Plain (HList (RowsExp rs))
+         , Unlift Exp (HList (RowsExp rs))
+         , RElem r (RowsExp rs) (RIndex r (RowsExp rs))
+         )
+      => sing r
+      -> (r -> f r)
+      -> Exp (HList rs)
+      -> f (Exp (HList rs))
+hlens k = elens . rlens k . ilens
+  where
+    elens f = fmap lift . f . unliftHList
+    ilens f = fmap Identity . f . getIdentity
+
+-- | Getter for a 'HList' field.
+hget :: ( forall f. Functor f => (a -> f a) -> Exp (HList rs) -> f (Exp (HList rs)) )
+     -> Exp (HList rs) -> a
+hget l = getConst . l Const
+
+-- | Setter for a 'HList' field.
+hput :: ( forall f. Functor f => (a -> f a) -> Exp (HList rs) -> f (Exp (HList rs)) )
+     -> a -> Exp (HList rs) -> Exp (HList rs)
+hput l y = getIdentity . l (\_ -> Identity y)
