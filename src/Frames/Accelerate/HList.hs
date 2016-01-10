@@ -1,23 +1,19 @@
-{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
-
-
-{-# LANGUAGE TemplateHaskell          #-}
-
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | HList support in Accelerate expressions.
 module Frames.Accelerate.HList
-  ( RowsExp
+  ( LiftRow
   , hlens
   , hget
   , hput
@@ -116,22 +112,22 @@ instance ( Elt  r
                  t = Exp $ SuccTupIdx ZeroTupIdx `Prj` e
              in Identity h :& unlift t
 
-type family RowsExp rs :: [*] where
-  RowsExp '[] = '[]
-  RowsExp (r ': rs) = Exp r ': RowsExp rs
+type family LiftRow rs :: [*] where
+  LiftRow '[] = '[]
+  LiftRow (r ': rs) = Exp r ': LiftRow rs
 
 -- | Specialized version of @unlift@ which can be used to convert
 -- expression of HList to HList of expressions without extra type annotations.
-unliftHList :: ( Unlift Exp (HList (RowsExp rs))
-               , HList rs ~ Plain (HList (RowsExp rs))
+unliftHList :: ( Unlift Exp (HList (LiftRow rs))
+               , HList rs ~ Plain (HList (LiftRow rs))
                )
-            => Exp (HList rs) -> HList (RowsExp rs)
+            => Exp (HList rs) -> HList (LiftRow rs)
 unliftHList = unlift
 
 hlens :: ( Functor f
-         , HList rs ~ Plain (HList (RowsExp rs))
-         , Unlift Exp (HList (RowsExp rs))
-         , RElem r (RowsExp rs) (RIndex r (RowsExp rs))
+         , HList rs ~ Plain (HList (LiftRow rs))
+         , Unlift Exp (HList (LiftRow rs))
+         , RElem r (LiftRow rs) (RIndex r (LiftRow rs))
          )
       => sing r
       -> (r -> f r)
@@ -151,8 +147,6 @@ hget l = getConst . l Const
 hput :: ( forall f. Functor f => (a -> f a) -> Exp (HList rs) -> f (Exp (HList rs)) )
      -> a -> Exp (HList rs) -> Exp (HList rs)
 hput l y = getIdentity . l (\_ -> Identity y)
-
-
 
 -- | Remove white space from both ends of a 'String'.
 trim :: String -> String

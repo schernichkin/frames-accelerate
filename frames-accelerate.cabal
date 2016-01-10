@@ -1,5 +1,5 @@
 name:                frames-accelerate
-version:             0.1.0.0
+version:             0.0.0.0
 synopsis:            Initial project template from stack
 description:         Please see README.md
 homepage:            http://github.com/schernichkin/frames-accelerate#readme
@@ -10,15 +10,24 @@ maintainer:          schernichkin@gmail.com
 copyright:           Copyright (C) 2015 Stanislav Chernichkin
 category:            Web
 build-type:          Simple
--- extra-source-files:
+extra-source-files:  demo/Main.hs
 cabal-version:       >=1.10
+
+source-repository head
+  type:     git
+  location: https://github.com/schernichkin/frames-accelerate
+
+flag demos
+  description: Build demonstration programs
+  default:     False
+  manual:      True
 
 library
   hs-source-dirs:      src
   exposed-modules:     Frames.Accelerate.HList
                      , Frames.Accelerate.Rec
   ghc-options:         -Wall
-  build-depends:       base >= 4.7 && < 5
+  build-depends:       base >= 4.8 && < 5
                      , accelerate
                      , Frames
                      -- TODO: lens is only for testing here, it should be removed in final version
@@ -27,13 +36,20 @@ library
                      , vinyl
   default-language:    Haskell2010
 
-executable frames-accelerate-exe
-  hs-source-dirs:      app
+executable demo
+  if !flag(demos)
+    buildable: False
+  hs-source-dirs:      demo
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , frames-accelerate
-  default-language:    Haskell2010
+  if flag(demos)
+    ghc-options:         -threaded -rtsopts "-with-rtsopts=-N -t -M2G"
+    build-depends:       base
+                       , accelerate
+                       , Frames
+                       , frames-accelerate
+                       , lens
+                       , vinyl
+    default-language:    Haskell2010
 
 test-suite frames-accelerate-test
   type:                exitcode-stdio-1.0
@@ -43,7 +59,3 @@ test-suite frames-accelerate-test
                      , frames-accelerate
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-
-source-repository head
-  type:     git
-  location: https://github.com/schernichkin/frames-accelerate

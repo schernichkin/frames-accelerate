@@ -5,10 +5,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Frames.Test where
 
-import Data.Array.Accelerate
+import Data.Array.Accelerate as A
 import Data.Array.Accelerate.Interpreter
 import Frames as F hiding (rlens, rget, rput)
 import Frames.CSV
@@ -42,3 +43,20 @@ test = getCol1 testRec
 
 testHList :: Exp (HList '[Int, Double])
 testHList = lift ( Identity 10 V.:&  Identity 20 V.:& RNil :: HList '[Exp Int, Exp Double] )
+
+------ for sample app
+
+declareColumn "emplyeeId" ''Int
+declareColumn "salary" ''Double
+
+adjustSalary :: ( LiftedElem Salary rs ) => Exp (Record rs) -> Exp (Record rs)
+adjustSalary rec =  rlens [rp|Salary|] %~ (*) 1.2 $ rec
+
+emplyees :: Vector (HList [EmplyeeId, Salary])
+emplyees = fromList (Z:.3)
+  [ 1 &: 100 &: Nil
+  , 2 &: 120 &: Nil
+  , 2 &: 130 &: Nil ]
+
+main :: IO ()
+main = print $ run $ A.map adjustSalary (A.use emplyees)

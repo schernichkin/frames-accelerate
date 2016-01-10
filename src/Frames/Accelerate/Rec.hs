@@ -10,7 +10,8 @@
 
 -- | Records support in Accelerate expressions.
 module Frames.Accelerate.Rec
-  ( rlens
+  ( LiftedElem
+  , rlens
   , rget
   , rput
   , rp
@@ -65,11 +66,13 @@ instance ( Elt a
   unlift e = let a = Exp $ ZeroTupIdx `Prj` e
               in Col a
 
+type LiftedElem r rs = ( RElem (Exp r) (LiftRow rs) (RIndex (Exp r) (LiftRow rs))
+                       , HList rs ~ Plain (HList (LiftRow rs))
+                       , Unlift Exp (HList (LiftRow rs)) )
+
 rlens :: ( Functor f
          , Elt a
-         , HList rs ~ Plain (HList (RowsExp rs))
-         , Unlift Exp (HList (RowsExp rs))
-         , RElem (Exp (s :-> a)) (RowsExp rs) (RIndex (Exp (s :-> a)) (RowsExp rs))
+         , LiftedElem (s :-> a) rs
          , Typeable s
          , KnownSymbol s
          )
