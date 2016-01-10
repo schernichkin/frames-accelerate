@@ -26,16 +26,9 @@ declareColumn "col1" ''Double
 declareColumn "col2" ''Double
 declareColumn "col3" ''Int
 
--- TODO: нужна линза, которая позволит заглядывать напрямую в запись из её
--- лифтанутого представляния.
-
-getCol1 :: Exp (Record '["col1" :-> Double, "col2" :-> Double, "col3" :-> Int])
+getCol1 :: Exp (Record '[Col1, Col2, Col3])
         -> Exp Double
-getCol1 rec =
-          -- TODO: нужно написать тип для этой линзы
-  let l = rlens  (Proxy :: Proxy  (Exp Col1))
-      a = rec ^. l
-   in a
+getCol1 rec = rec ^. rlens [rp|Col1|]
 
 kkk = rget (rlens (Proxy :: Proxy  (Exp Col1))) testRec
 
@@ -49,8 +42,3 @@ test = getCol1 testRec
 
 testHList :: Exp (HList '[Int, Double])
 testHList = lift ( Identity 10 V.:&  Identity 20 V.:& RNil :: HList '[Exp Int, Exp Double] )
-
--- kkk = testHList ^. hlens (Proxy :: Proxy  (Exp Int))
--- lll = hget (hlens (Proxy :: Proxy  (Exp Int))) testHList
-
---testHPut = hput (hlens (Proxy :: Proxy  (Exp Int))) 30

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -8,6 +9,10 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
+
+{-# LANGUAGE TemplateHaskell          #-}
+
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | HList support in Accelerate expressions.
@@ -16,18 +21,22 @@ module Frames.Accelerate.HList
   , hlens
   , hget
   , hput
+  , hp
   ) where
 
 import Control.Applicative
-import Data.Array.Accelerate
+import Data.Array.Accelerate hiding ( map, not )
 import Data.Array.Accelerate.Array.Sugar
 import Data.Array.Accelerate.Smart hiding ( Const )
 import Data.Array.Accelerate.Tuple
 import Data.Array.Accelerate.Type
+import Data.Char
 import Data.Typeable
 import Data.Vinyl
 import Data.Vinyl.Functor ( Identity (..) )
 import Data.Vinyl.TypeLevel
+import Language.Haskell.TH hiding ( Exp )
+import Language.Haskell.TH.Quote
 
 type instance EltRepr  (HList '[]) = ()
 type instance EltRepr' (HList '[]) = ()
@@ -142,3 +151,35 @@ hget l = getConst . l Const
 hput :: ( forall f. Functor f => (a -> f a) -> Exp (HList rs) -> f (Exp (HList rs)) )
      -> a -> Exp (HList rs) -> Exp (HList rs)
 hput l y = getIdentity . l (\_ -> Identity y)
+
+
+
+-- | Remove white space from both ends of a 'String'.
+trim :: String -> String
+trim = takeWhile (not . isSpace) . dropWhile isSpace
+
+-- | Split on a delimiter.
+splitOn :: Eq a => a -> [a] -> [[a]]
+splitOn d = go
+  where go [] = []
+        go xs = let (h,t) = break (== d) xs
+                in case t of
+                     [] -> [h]
+                     (_:t') -> h : go t'
+
+-- | A proxy value quasiquoter; a way of passing types as
+-- values. @[pr|T|]@ will splice an expression @Proxy::Proxy (Exp T)@, while
+-- @[pr|A,B,C|]@ will splice in a value of @Proxy :: Proxy
+-- [Exp A, Exp B, Exp C]@. If we have a record type with @Name@ and @Age@ among
+-- other fields, we can write @select @[pr|Name,Age|]@ for a function
+-- that extracts those fields from a larger record.
+hp :: QuasiQuoter
+hp = QuasiQuoter mkProxy undefined undefined undefined
+  where mkProxy s = let ts = map trim $ splitOn ',' s
+                        cons = mapM (\name -> [t| Exp $(conT $ mkName name) |]) ts
+                        mkList = foldr (AppT . AppT PromotedConsT) PromotedNilT
+                    in case ts of
+                         [h@(t:_)]
+                             | isUpper t -> [|Proxy::Proxy $(fmap head cons)|]
+                             | otherwise -> [|Proxy::Proxy $(varT $ mkName h)|]
+                         _ -> [|Proxy::Proxy $(fmap mkList cons)|]

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -12,6 +13,7 @@ module Frames.Accelerate.Rec
   ( rlens
   , rget
   , rput
+  , rp
   ) where
 
 import Data.Array.Accelerate
@@ -25,6 +27,7 @@ import Data.Vinyl.TypeLevel ( RIndex )
 import Frames hiding ( rlens, rget, rput )
 import Frames.Accelerate.HList
 import GHC.TypeLits
+import Language.Haskell.TH.Quote
 
 type instance EltRepr  (s :-> a) = ((), EltRepr' a)
 type instance EltRepr' (s :-> a) = EltRepr' a
@@ -87,3 +90,6 @@ rget = hget
 rput :: ( forall f. Functor f => (a -> f a) -> Exp (HList rs) -> f (Exp (HList rs)) )
      -> a -> Exp (HList rs) -> Exp (HList rs)
 rput = hput
+
+rp :: QuasiQuoter
+rp = hp
