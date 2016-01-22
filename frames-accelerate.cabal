@@ -19,7 +19,7 @@ source-repository head
 
 flag demos
   description: Build demonstration programs
-  default:     False
+  default:     True
   manual:      True
 
 library
@@ -32,6 +32,8 @@ library
                      , Frames
                      -- TODO: lens is only for testing here, it should be removed in final version
                      , lens
+                     , pipes
+                     , primitive
                      , template-haskell
                      , vinyl
   default-language:    Haskell2010
@@ -48,6 +50,7 @@ executable demo
                        , Frames
                        , frames-accelerate
                        , lens
+                       , pipes
                        , vinyl
     default-language:    Haskell2010
 

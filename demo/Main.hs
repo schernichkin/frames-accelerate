@@ -13,6 +13,7 @@ import Data.Array.Accelerate.Interpreter
 import Frames hiding ( rlens )
 import Frames.Accelerate.Rec
 import Frames.CSV
+import Pipes
 
 declareColumn "emplyeeId" ''Int
 declareColumn "salary" ''Double
@@ -20,11 +21,11 @@ declareColumn "salary" ''Double
 adjustSalary :: ( LiftedElem Salary rs ) => Exp (Record rs) -> Exp (Record rs)
 adjustSalary rec =  rlens [rp|Salary|] %~ (*) 1.2 $ rec
 
-emplyees :: Vector (Record [EmplyeeId, Salary])
-emplyees = fromList (Z:.3)
-  [ 1 &: 100 &: Nil
-  , 2 &: 120 &: Nil
-  , 2 &: 130 &: Nil ]
+emplyees :: (Monad m) => Producer (Record [EmplyeeId, Salary]) m ()
+emplyees = do
+  yield $ 1 &: 100 &: Nil
+  yield $ 2 &: 120 &: Nil
+  yield $ 3 &: 130 &: Nil
 
 main :: IO ()
-main = print $ run $ A.map adjustSalary (A.use emplyees)
+main = inCoreA emplyees >>= print . run . A.map adjustSalary . A.use
